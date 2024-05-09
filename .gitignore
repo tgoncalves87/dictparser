@@ -1,0 +1,6 @@
+/build/
+/venv/
+/*.whl
+
+__pycache__/
+*.egg-info/

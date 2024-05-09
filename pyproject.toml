@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dictparser"
+version = "0.1.0"
+description = "A Class serialization/deserializeation library"
+readme = "README.md"
+requires-python = ">=3.6"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT No Attribution License (MIT-0)",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "pyyaml"
+]
+
+[project.urls]
+Homepage = "https://github.com/tgoncalves87/dictparser"
+Issues = "https://github.com/tgoncalves87/dictparser/issues"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = [
+    "-ra",
+    "--import-mode=importlib",
+]
+testpaths = [
+    "tests",
+]
+
+[tool.pylint.MAIN]
+load-plugins = ["dictparser.pylint"]
+
+[tool.pylint.format]
+max-line-length = 120
+
+[tool.pylint."messages control"]
+disable = [
+    "no-else-return",
+    "missing-class-docstring",
+    "missing-module-docstring",
+    "missing-function-docstring"
+]

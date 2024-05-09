@@ -1,0 +1,10 @@
+{
+    "explorer.excludeGitIgnore": true,
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "pythonTestExplorer.testFramework": "pytest",
+    "pylint.importStrategy": "fromEnvironment"
+}
