@@ -76,7 +76,7 @@ class Field:
             method = getattr(field_type, "parse")
             return method(data)
 
-        elif field_type is None or field_type == types.NoneType:
+        elif field_type is None or field_type == type(None):
             if data is None:
                 return None
             else:
@@ -88,13 +88,13 @@ class Field:
             if origin == types.UnionType:
                 args = typing.get_args(field_type)
                 if len(args) == 2:
-                    if args[0] is None or args[0] == types.NoneType:
+                    if args[0] is None or args[0] == type(None):
                         if data is None:
                             return None
                         else:
                             return cls.get_value_from_type(args[1], data)
 
-                    elif args[1] is None or args[1] == types.NoneType:
+                    elif args[1] is None or args[1] == type(None):
                         if data is None:
                             return None
                         else:
