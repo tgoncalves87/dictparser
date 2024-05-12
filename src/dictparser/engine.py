@@ -4,6 +4,7 @@ import collections.abc
 import copy
 import functools
 import dataclasses
+import sys
 import yaml
 
 
@@ -82,11 +83,11 @@ class Field:
             else:
                 raise RuntimeError(f"Invalid data type '{data.__class__}' for field type of None")
 
-        elif typing.get_origin(field_type) is not None:
-            origin = typing.get_origin(field_type)
+        elif _get_origin(field_type) is not None:
+            origin = _get_origin(field_type)
 
-            if origin == types.UnionType:
-                args = typing.get_args(field_type)
+            if _is_union_type(field_type):
+                args = _get_args(field_type)
                 if len(args) == 2:
                     if args[0] is None or args[0] == type(None):
                         if data is None:
@@ -99,20 +100,25 @@ class Field:
                             return None
                         else:
                             return cls.get_value_from_type(args[0], data)
+                else:
+                    raise NotImplementedError("Union type with <> 2 arguments is not supported")
 
-            elif origin == list:
-                args = typing.get_args(field_type)
+            elif origin in (list, typing.List):
+                args = _get_args(field_type)
                 res = []
                 for v in data:
                     res.append(cls.get_value_from_type(args[0], v))
                 return res
 
-            elif origin == dict:
-                args = typing.get_args(field_type)
+            elif origin in (dict, typing.Dict):
+                args = _get_args(field_type)
                 res = {}
                 for k, v in data.items():
                     res[k] = cls.get_value_from_type(args[1], v)
                 return res
+
+            else:
+                raise NotImplementedError(f"'{origin}' not implemented")
 
         else:
             return field_type(data)
@@ -159,6 +165,35 @@ def apply(cls, new_fields):
     _setattr_method_as_dict(cls)
 
     return dataclasses.dataclass(cls)
+
+
+if sys.version_info[0:2] == (3, 6):
+    def _get_origin(t):
+        if hasattr(t, "__origin__"):
+            return t.__origin__
+        else:
+            return None
+
+
+    def _is_union_type(t):
+        origin = _get_origin(t)
+        return origin in (typing.Union, )
+
+
+    def _get_args(t):
+        return list(t.__args__)
+else:
+    def _get_origin(t):
+        return typing.get_origin(t)
+
+
+    def _is_union_type(t):
+        origin = _get_origin(t)
+        return origin in (types.UnionType, typing.Union)
+
+
+    def _get_args(t):
+        return list(typing.get_args(t))
 
 
 def _setattr_method_from_dict(cls):
