@@ -167,7 +167,19 @@ def apply(cls, new_fields):
     return dataclasses.dataclass(cls)
 
 
-if sys.version_info[0:2] == (3, 6):
+if sys.version_info >= (3, 10):
+    def _get_origin(t):
+        return typing.get_origin(t)
+
+
+    def _is_union_type(t):
+        origin = _get_origin(t)
+        return origin in (types.UnionType, typing.Union)
+
+
+    def _get_args(t):
+        return list(typing.get_args(t))
+else:
     def _get_origin(t):
         if hasattr(t, "__origin__"):
             return t.__origin__
@@ -182,18 +194,6 @@ if sys.version_info[0:2] == (3, 6):
 
     def _get_args(t):
         return list(t.__args__)
-else:
-    def _get_origin(t):
-        return typing.get_origin(t)
-
-
-    def _is_union_type(t):
-        origin = _get_origin(t)
-        return origin in (types.UnionType, typing.Union)
-
-
-    def _get_args(t):
-        return list(typing.get_args(t))
 
 
 def _setattr_method_from_dict(cls):
