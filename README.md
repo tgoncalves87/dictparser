@@ -1,1 +1,1 @@
-A Class serialization/deserializeation library
+A Class serialization/deserialization library

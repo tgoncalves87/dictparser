@@ -1,6 +1,5 @@
 import sys
 
-from typing import Optional, List, Dict
 from dictparser import dictparser
 
 

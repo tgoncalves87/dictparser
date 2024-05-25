@@ -8,7 +8,7 @@ import sys
 import yaml
 
 
-_DATA = "__dictparser_data__"
+_CLASS_DATA = "__dictparser_class_data__"
 _FROM_DICT_METHOD = "from_dict"
 _FROM_FILE_METHOD = "from_file"
 _AS_DICT_METHOD = "as_dict"
@@ -18,7 +18,7 @@ class MISSING:
     pass
 
 
-class Data:
+class ClassData:
     def __init__(self):
         self.fields = {}
         self.result_cls = MISSING
@@ -26,10 +26,141 @@ class Data:
         self.ignore_extra = False
 
 
-class Field:
-    def __init__(self, field_name, field_type, data_key, default=MISSING, default_factory=MISSING):
-        self.field_name = field_name
+class TypeData:
+    def __init__(self, field_type, res_types):
         self.field_type = field_type
+        self.res_types = res_types
+
+    def get_value(self, data):
+        res = self._convert_value(data)
+
+        if type(res) not in self.res_types:
+            raise RuntimeError(f"Converted value does not match expected result type: {type(res)} vs {self.res_types}")
+
+        return res
+
+
+class HasFromDictTypeData(TypeData):
+    def _convert_value(self, data):
+        if type(data) in self.res_types:
+            return data
+        else:
+            return getattr(self.field_type, _FROM_DICT_METHOD)(data)
+
+
+class NullTypeData(TypeData):
+    def _convert_value(self, data):
+        if data is None:
+            return None
+        else:
+            raise RuntimeError(f"Invalid data type '{data.__class__}' for field type of None")
+
+
+class ConstructorTypeData(TypeData):
+    def __init__(self, field_type, res_types, func):
+        super().__init__(field_type, res_types)
+        self.func = func
+
+    def _convert_value(self, data):
+        if data in self.res_types:
+            return data
+        else:
+            return self.func(data)
+
+
+class ListTypeData(TypeData):
+    def __init__(self, field_type, res_types, item_type_data: TypeData):
+        super().__init__(field_type, res_types)
+        self.item_type_data = item_type_data
+
+    def _convert_value(self, data):
+        return self.res_types[0](
+            [self.item_type_data.get_value(v) for v in data]
+        )
+
+
+class DictTypeData(TypeData):
+    def __init__(self, field_type, res_types, key_type_data: TypeData, value_type_data: TypeData):
+        super().__init__(field_type, res_types)
+        self.key_type_data = key_type_data
+        self.value_type_data = value_type_data
+
+    def _convert_value(self, data):
+        return self.res_types[0](
+            [(self.key_type_data.get_value(k), self.value_type_data.get_value(v)) for k, v in data.items()]
+        )
+
+
+class OptionalTypeData(TypeData):
+    def __init__(self, field_type, res_types, item_type_data: TypeData):
+        super().__init__(field_type, res_types)
+        self.item_type_data = item_type_data
+
+    def _convert_value(self, data):
+        if data == None:
+            return None
+        else:
+            return self.item_type_data.get_value(data)
+
+
+def parse_field_type(field_type):
+    if hasattr(field_type, _FROM_DICT_METHOD):
+        return HasFromDictTypeData(field_type, [field_type])
+
+    elif field_type == type(None) or field_type is None:
+        return NullTypeData(field_type, [type(None)])
+
+    elif _get_origin(field_type) is not None:
+        origin = _get_origin(field_type)
+
+        if _is_union_type(field_type):
+            args = _get_args(field_type)
+
+            if len(args) == 2:
+                if args[0] is None or args[0] == type(None):
+                    arg_type_data = parse_field_type(args[1])
+                    return OptionalTypeData(field_type, [type(None)] + arg_type_data.res_types, arg_type_data)
+
+                elif args[1] is None or args[1] == type(None):
+                    arg_type_data = parse_field_type(args[0])
+                    return OptionalTypeData(field_type, [type(None)] + arg_type_data.res_types, arg_type_data)
+            else:
+                raise NotImplementedError("Union type with <> 2 arguments is not supported")
+
+        elif origin in (list, typing.List):
+            args = _get_args(field_type)
+
+            if len(args) != 1:
+                raise RuntimeError("List type annotation has an amount of argument types different than 1")
+
+            return ListTypeData(field_type, [list], parse_field_type(args[0]))
+
+        elif origin in (dict, typing.Dict):
+            args = _get_args(field_type)
+
+            if len(args) != 2:
+                raise RuntimeError("Dict type annotation has an amount of argument types different than 2")
+
+            return DictTypeData(field_type, [dict], parse_field_type(args[0]), parse_field_type(args[1]))
+
+        #elif origin in (tuple, ): This is alot more complicated than this
+        #    args = _get_args(field_type)
+        #    return ListTypeData(field_type, [tuple], parse_field_type(args[0]))
+
+        else:
+            raise NotImplementedError(f"'origin {origin}' not implemented")
+
+    elif field_type in (bool, int, float, complex, str, bytes, bytearray):
+        return ConstructorTypeData(field_type, [field_type], field_type)
+
+    else:
+        raise NotImplementedError(f"Type {field_type} not implemented")
+
+
+class Field:
+    def __init__(self, field_name, field_type_data, data_key, default=MISSING, default_factory=MISSING):
+        self.field_name = field_name
+        self.field_type_data = field_type_data
         self.data_key = data_key
         self.default = None
         self.default_factory = None
@@ -51,77 +182,22 @@ class Field:
         data_key = field_name
         default_factory = MISSING
 
-        if default is not MISSING and default.__class__.__hash__ is None:
-            def gen_factory(default):
-                return lambda : copy.deepcopy(default)
+        field_type_data = parse_field_type(field_type)
 
-            default_factory = gen_factory(default)
-            default = MISSING
+        if default is not MISSING:
+            default = field_type_data.get_value(default)
 
-        if default is MISSING and default_factory is MISSING:
-            if hasattr(field_type, _FROM_DICT_METHOD):
-                default_factory = functools.partial(getattr(field_type, _FROM_DICT_METHOD), {})
+            if default.__class__.__hash__ is None:
+                def copy_factory(default):
+                    return lambda : copy.deepcopy(default)
 
-        return cls(field_name, field_type, data_key, default=default, default_factory=default_factory)
+                default_factory = copy_factory(default)
+                default = MISSING
+
+        return cls(field_name, field_type_data, data_key, default=default, default_factory=default_factory)
 
     def get_value(self, data):
-        return self.get_value_from_type(self.field_type, data)
-
-    @classmethod
-    def get_value_from_type(cls, field_type, data):
-        if hasattr(field_type, _FROM_DICT_METHOD):
-            method = getattr(field_type, _FROM_DICT_METHOD)
-            return method(data)
-
-        elif hasattr(field_type, "parse"):
-            method = getattr(field_type, "parse")
-            return method(data)
-
-        elif field_type is None or field_type == type(None):
-            if data is None:
-                return None
-            else:
-                raise RuntimeError(f"Invalid data type '{data.__class__}' for field type of None")
-
-        elif _get_origin(field_type) is not None:
-            origin = _get_origin(field_type)
-
-            if _is_union_type(field_type):
-                args = _get_args(field_type)
-                if len(args) == 2:
-                    if args[0] is None or args[0] == type(None):
-                        if data is None:
-                            return None
-                        else:
-                            return cls.get_value_from_type(args[1], data)
-
-                    elif args[1] is None or args[1] == type(None):
-                        if data is None:
-                            return None
-                        else:
-                            return cls.get_value_from_type(args[0], data)
-                else:
-                    raise NotImplementedError("Union type with <> 2 arguments is not supported")
-
-            elif origin in (list, typing.List):
-                args = _get_args(field_type)
-                res = []
-                for v in data:
-                    res.append(cls.get_value_from_type(args[0], v))
-                return res
-
-            elif origin in (dict, typing.Dict):
-                args = _get_args(field_type)
-                res = {}
-                for k, v in data.items():
-                    res[k] = cls.get_value_from_type(args[1], v)
-                return res
-
-            else:
-                raise NotImplementedError(f"'{origin}' not implemented")
-
-        else:
-            return field_type(data)
+        return self.field_type_data.get_value(data)
 
     def get_default(self):
         if self.default_factory:
@@ -134,7 +210,7 @@ def apply(cls, new_fields):
     fields = {}
 
     for base in cls.__mro__[-1:0:-1]:
-        base_data = getattr(base, _DATA, None)
+        base_data = getattr(base, _CLASS_DATA, None)
         if base_data is not None:
             for field in base_data.fields.values():
                 fields[field.field_name] = field
@@ -145,17 +221,17 @@ def apply(cls, new_fields):
     #
     #
     #
-    _data = Data()
-    setattr(cls, _DATA, _data)
+    _class_data = ClassData()
+    setattr(cls, _CLASS_DATA, _class_data)
 
-    _data.fields = fields
+    _class_data.fields = fields
 
-    for field in _data.fields.values():
+    for field in _class_data.fields.values():
         if not field.has_default:
-            _data.has_required = True
+            _class_data.has_required = True
             break
 
-    _data.result_cls = cls
+    _class_data.result_cls = cls
 
     #
     #
@@ -201,7 +277,7 @@ def _setattr_method_from_dict(cls):
         return
 
     def from_dict(cls, data):
-        dictpaser_data = getattr(cls, _DATA)
+        class_data = getattr(cls, _CLASS_DATA)
 
         if not isinstance(data, collections.abc.Mapping):
             raise RuntimeError("data is not a dict like value")
@@ -209,7 +285,7 @@ def _setattr_method_from_dict(cls):
         args = {}
         keys = set(data.keys())
 
-        for field in dictpaser_data.fields.values():
+        for field in class_data.fields.values():
             if field.data_key in data:
                 args[field.field_name] = field.get_value(data[field.data_key])
                 keys.remove(field.data_key)
@@ -220,10 +296,10 @@ def _setattr_method_from_dict(cls):
             else:
                 raise RuntimeError("ups")
 
-        if len(keys) > 0 and not dictpaser_data.ignore_extra:
+        if len(keys) > 0 and not class_data.ignore_extra:
             raise RuntimeError(f"Extra data keys: {list(keys)}")
 
-        result_cls = dictpaser_data.result_cls
+        result_cls = class_data.result_cls
         return result_cls(**args)
 
     from_dict.__qualname__ = f"{cls.__qualname__}.from_dict"
