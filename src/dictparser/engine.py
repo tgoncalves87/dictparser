@@ -2,9 +2,11 @@ import types
 import typing
 import collections.abc
 import copy
-import functools
 import dataclasses
 import sys
+
+from abc import ABC, abstractmethod
+
 import yaml
 
 
@@ -26,7 +28,7 @@ class ClassData:
         self.ignore_extra = False
 
 
-class TypeData:
+class TypeData(ABC):
     def __init__(self, field_type, res_types):
         self.field_type = field_type
         self.res_types = res_types
@@ -38,6 +40,10 @@ class TypeData:
             raise RuntimeError(f"Converted value does not match expected result type: {type(res)} vs {self.res_types}")
 
         return res
+
+    @abstractmethod
+    def _convert_value(self, data):
+        pass
 
 
 class HasFromDictTypeData(TypeData):
@@ -97,13 +103,13 @@ class OptionalTypeData(TypeData):
         self.item_type_data = item_type_data
 
     def _convert_value(self, data):
-        if data == None:
+        if data is None:
             return None
         else:
             return self.item_type_data.get_value(data)
 
 
-def parse_field_type(field_type):
+def parse_field_type(field_type) -> TypeData:
     if hasattr(field_type, _FROM_DICT_METHOD):
         return HasFromDictTypeData(field_type, [field_type])
 
@@ -124,8 +130,8 @@ def parse_field_type(field_type):
                 elif args[1] is None or args[1] == type(None):
                     arg_type_data = parse_field_type(args[0])
                     return OptionalTypeData(field_type, [type(None)] + arg_type_data.res_types, arg_type_data)
-            else:
-                raise NotImplementedError("Union type with <> 2 arguments is not supported")
+
+            raise NotImplementedError("Union type with <> 2 arguments is not supported")
 
         elif origin in (list, typing.List):
             args = _get_args(field_type)
@@ -158,7 +164,14 @@ def parse_field_type(field_type):
 
 
 class Field:
-    def __init__(self, field_name, field_type_data, data_key, default=MISSING, default_factory=MISSING):
+    def __init__(
+        self,
+        field_name,
+        field_type_data,
+        data_key,
+        default: typing.Any = MISSING,
+        default_factory: typing.Any = MISSING
+    ):
         self.field_name = field_name
         self.field_type_data = field_type_data
         self.data_key = data_key
@@ -206,7 +219,17 @@ class Field:
             return self.default
 
 
-def apply(cls, new_fields):
+if sys.version_info >= (3, 11):
+    T = typing.TypeVar("T")
+
+    def process_class(cls: type[T], kw_only=False) -> T:
+        return process_class_inner(cls, kw_only)
+else:
+    def process_class(cls, kw_only=False):
+        return process_class_inner(cls, kw_only)
+
+
+def process_class_inner(cls, kw_only):
     fields = {}
 
     for base in cls.__mro__[-1:0:-1]:
@@ -215,8 +238,16 @@ def apply(cls, new_fields):
             for field in base_data.fields.values():
                 fields[field.field_name] = field
 
-    for new_field in new_fields.values():
-        fields[new_field.field_name] = new_field
+    if hasattr(cls, "__annotations__"):
+        for field_name, field_type in cls.__annotations__.items():
+            if hasattr(cls, field_name):
+                default = getattr(cls, field_name)
+                delattr(cls, field_name)
+                field = Field.from_type(field_name, field_type, default)
+            else:
+                field = Field.from_type(field_name, field_type)
+
+            fields[field.field_name] = field
 
     #
     #

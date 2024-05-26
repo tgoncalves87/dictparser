@@ -15,7 +15,7 @@ if sys.version_info >= (3, 6):
         extra: bool
 
 
-    @dictparser
+    @dictparser(kw_only=True)
     class TopLevel:
         a1: None
         a2: None = None

@@ -1,19 +1,24 @@
-from .engine import Field
-from .engine import apply as _apply
+import sys
+import typing
 
+from .engine import process_class as _process_class
 
-def dictparser(cls):
-    fields = {}
+if sys.version_info >= (3, 11):
+    @typing.dataclass_transform()
+    def dictparser(cls=None, *, kw_only=False):
+        def wrap(cls):
+            return _process_class(cls, kw_only)
 
-    if hasattr(cls, "__annotations__"):
-        for field_name, field_type in cls.__annotations__.items():
-            if hasattr(cls, field_name):
-                default = getattr(cls, field_name)
-                delattr(cls, field_name)
-                field = Field.from_type(field_name, field_type, default)
-            else:
-                field = Field.from_type(field_name, field_type)
+        if cls is None:
+            return wrap
 
-            fields[field.field_name] = field
+        return wrap(cls)
+else:
+    def dictparser(cls=None, *, kw_only=False):
+        def wrap(cls):
+            return _process_class(cls, kw_only)
 
-    return _apply(cls, fields)
+        if cls is None:
+            return wrap
+
+        return wrap(cls)
