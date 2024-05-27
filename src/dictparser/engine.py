@@ -35,15 +35,19 @@ class TypeData(ABC):
 
     def get_value(self, data):
         res = self._convert_value(data)
-
-        if type(res) not in self.res_types:
-            raise RuntimeError(f"Converted value does not match expected result type: {type(res)} vs {self.res_types}")
-
+        self._validate_res_type(res)
         return res
 
     @abstractmethod
     def _convert_value(self, data):
         pass
+
+    def _validate_res_type(self, res):
+        for i in self.res_types:
+            if isinstance(res, i):
+                return
+
+        raise RuntimeError(f"Converted value does not match expected result type: {type(res)} vs {self.res_types}")
 
 
 class HasFromDictTypeData(TypeData):
