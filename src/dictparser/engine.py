@@ -226,7 +226,7 @@ class Field:
 if sys.version_info >= (3, 11):
     T = typing.TypeVar("T")
 
-    def process_class(cls: type[T], kw_only=False) -> T:
+    def process_class(cls: type[T], kw_only=False) -> type[T]:
         return process_class_inner(cls, kw_only)
 else:
     def process_class(cls, kw_only=False):
