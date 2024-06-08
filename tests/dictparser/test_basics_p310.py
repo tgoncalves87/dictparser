@@ -1,6 +1,5 @@
 import sys
 
-from typing import Optional, List, Dict
 from dictparser import dictparser
 
 
@@ -15,7 +14,7 @@ if sys.version_info >= (3, 10):
         extra: bool
 
 
-    @dictparser
+    @dictparser(kw_only=True)
     class TopLevel:
         a1: None
         a2: None = None
