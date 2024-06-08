@@ -4,6 +4,7 @@ import collections.abc
 import copy
 import dataclasses
 import sys
+import pathlib
 
 from abc import ABC, abstractmethod
 
@@ -160,7 +161,7 @@ def parse_field_type(field_type) -> TypeData:
         else:
             raise NotImplementedError(f"'origin {origin}' not implemented")
 
-    elif field_type in (bool, int, float, complex, str, bytes, bytearray):
+    elif field_type in (bool, int, float, complex, str, bytes, bytearray, pathlib.Path):
         return ConstructorTypeData(field_type, [field_type], field_type)
 
     else:
