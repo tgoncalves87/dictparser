@@ -1,3 +1,4 @@
+# pylint: disable=R0801
 import sys
 
 from typing import Optional, List, Dict
@@ -67,7 +68,6 @@ if sys.version_info >= (3, 6):
         i4: Optional[Dict[str, ClassA]]
         i5: Optional[Dict[str, ClassA]] = {"b": ClassA(True, True)}
         i6: Optional[Dict[str, ClassA]] = None
-
 
         @classmethod
         def get_construct_data(cls):
@@ -178,7 +178,7 @@ if sys.version_info >= (3, 6):
             assert self.d6 is None
 
 
-    def test_defaults_only_empty_dict():
+    def test_defaults_only_empty_dict_from_method():
         """Tests @dictparser class construction from empty dict"""
         v = TopLevelDefauls.from_dict({})
         v.assert_defaults()
@@ -189,7 +189,7 @@ if sys.version_info >= (3, 6):
         assert v2 == v
 
 
-    def test_with_defaults():
+    def test_with_defaults_from_method():
         v = TopLevel.from_dict(TopLevel.get_construct_data())
         v.assert_defaults()
 
@@ -199,7 +199,7 @@ if sys.version_info >= (3, 6):
         assert v2 == v
 
 
-    def test_defaults_not_mutable():
+    def test_defaults_not_mutable_from_method():
         v = TopLevel.from_dict(TopLevel.get_construct_data())
         v.e1.append(6)
         v.e2.append(6)
