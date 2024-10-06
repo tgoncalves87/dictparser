@@ -21,10 +21,12 @@ def transform(cls):
 
     for node in cls.decorators.nodes:
         if isinstance(node, astroid.Call):  # decorator with arguments
-            pass
+            node_to_infer = node.func
+        else:
+            node_to_infer = node
 
         try:
-            inferred = next(node.infer())
+            inferred = next(node_to_infer.infer())
         except (astroid.InferenceError, StopIteration):
             inferred = astroid.Uninferable
 
