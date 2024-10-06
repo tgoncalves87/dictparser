@@ -10,6 +10,11 @@ from abc import ABC, abstractmethod
 
 import yaml
 
+if sys.version_info >= (3, 10):
+    from ._type_utils_p310 import _get_origin, _is_union_type, _get_args
+else:
+    from ._type_utils_p36 import _get_origin, _is_union_type, _get_args
+
 
 _CLASS_DATA = "__dictparser_class_data__"
 _FROM_DICT_METHOD = "from_dict"
@@ -34,7 +39,7 @@ class TypeData(ABC):
         self.field_type = field_type
         self.res_types = res_types
 
-    def get_value(self, data):
+    def convert_value(self, data):
         res = self._convert_value(data)
         self._validate_res_type(res)
         return res
@@ -86,7 +91,7 @@ class ListTypeData(TypeData):
 
     def _convert_value(self, data):
         return self.res_types[0](
-            [self.item_type_data.get_value(v) for v in data]
+            [self.item_type_data.convert_value(v) for v in data]
         )
 
 
@@ -98,7 +103,7 @@ class DictTypeData(TypeData):
 
     def _convert_value(self, data):
         return self.res_types[0](
-            [(self.key_type_data.get_value(k), self.value_type_data.get_value(v)) for k, v in data.items()]
+            [(self.key_type_data.convert_value(k), self.value_type_data.convert_value(v)) for k, v in data.items()]
         )
 
 
@@ -111,7 +116,7 @@ class OptionalTypeData(TypeData):
         if data is None:
             return None
         else:
-            return self.item_type_data.get_value(data)
+            return self.item_type_data.convert_value(data)
 
 
 def parse_field_type(field_type) -> TypeData:
@@ -177,23 +182,23 @@ class Field:
         default: typing.Any = MISSING,
         default_factory: typing.Any = MISSING
     ):
-        self.field_name = field_name
-        self.field_type_data = field_type_data
-        self.data_key = data_key
-        self.default = None
-        self.default_factory = None
-        self.has_default = False
-        self.required = True
+        self._field_name = field_name
+        self._field_type_data = field_type_data
+        self._data_key = data_key
+        self._default = None
+        self._default_factory = None
+        self._has_default = False
+        self._required = True
 
         if default is not MISSING:
-            self.has_default = True
-            self.required = False
-            self.default = default
+            self._has_default = True
+            self._required = False
+            self._default = default
 
         elif default_factory is not MISSING:
-            self.has_default = True
-            self.required = False
-            self.default_factory = default_factory
+            self._has_default = True
+            self._required = False
+            self._default_factory = default_factory
 
     @classmethod
     def from_type(cls, field_name, field_type, default=MISSING):
@@ -203,7 +208,7 @@ class Field:
         field_type_data = parse_field_type(field_type)
 
         if default is not MISSING:
-            default = field_type_data.get_value(default)
+            default = field_type_data.convert_value(default)
 
             if default.__class__.__hash__ is None:
                 def copy_factory(default):
@@ -214,27 +219,33 @@ class Field:
 
         return cls(field_name, field_type_data, data_key, default=default, default_factory=default_factory)
 
-    def get_value(self, data):
-        return self.field_type_data.get_value(data)
+    def convert_value(self, data):
+        return self._field_type_data.convert_value(data)
 
-    def get_default(self):
-        if self.default_factory:
-            return self.default_factory()
+    def get_default_value(self):
+        if self._default_factory:
+            return self._default_factory()
         else:
-            return self.default
+            return self._default
+
+    @property
+    def field_name(self) -> str:
+        return self._field_name
+
+    @property
+    def data_key(self) -> str:
+        return self._data_key
+
+    @property
+    def has_default(self) -> bool:
+        return self._has_default
+
+    @property
+    def is_required(self) -> bool:
+        return self._required
 
 
-if sys.version_info >= (3, 11):
-    T = typing.TypeVar("T")
-
-    def process_class(cls: type[T], kw_only=False) -> type[T]:
-        return process_class_inner(cls, kw_only)
-else:
-    def process_class(cls, kw_only=False):
-        return process_class_inner(cls, kw_only)
-
-
-def process_class_inner(cls, kw_only):
+def process_class(cls, kw_only):
     fields = {}
 
     for base in cls.__mro__[-1:0:-1]:
@@ -279,40 +290,11 @@ def process_class_inner(cls, kw_only):
     return dataclasses.dataclass(cls)
 
 
-if sys.version_info >= (3, 10):
-    def _get_origin(t):
-        return typing.get_origin(t)
-
-
-    def _is_union_type(t):
-        origin = _get_origin(t)
-        return origin in (types.UnionType, typing.Union)
-
-
-    def _get_args(t):
-        return list(typing.get_args(t))
-else:
-    def _get_origin(t):
-        if hasattr(t, "__origin__"):
-            return t.__origin__
-        else:
-            return None
-
-
-    def _is_union_type(t):
-        origin = _get_origin(t)
-        return origin in (typing.Union, )
-
-
-    def _get_args(t):
-        return list(t.__args__)
-
-
 def _setattr_method_from_dict(cls):
     if hasattr(cls, _FROM_DICT_METHOD):
         return
 
-    def from_dict(cls, data):
+    def from_dict_impl(cls, data):
         class_data = getattr(cls, _CLASS_DATA)
 
         if not isinstance(data, collections.abc.Mapping):
@@ -323,10 +305,10 @@ def _setattr_method_from_dict(cls):
 
         for field in class_data.fields.values():
             if field.data_key in data:
-                args[field.field_name] = field.get_value(data[field.data_key])
+                args[field.field_name] = field.convert_value(data[field.data_key])
                 keys.remove(field.data_key)
             elif field.has_default:
-                args[field.field_name] = field.get_default()
+                args[field.field_name] = field.get_default_value()
             elif field.required:
                 raise RuntimeError(f"Required field '{field.field_name}' is missing")
             else:
@@ -338,33 +320,53 @@ def _setattr_method_from_dict(cls):
         result_cls = class_data.result_cls
         return result_cls(**args)
 
-    from_dict.__qualname__ = f"{cls.__qualname__}.from_dict"
+    from_dict_impl.__qualname__ = f"{cls.__qualname__}.from_dict"
 
-    setattr(cls, _FROM_DICT_METHOD, classmethod(from_dict))
+    setattr(cls, _FROM_DICT_METHOD, classmethod(from_dict_impl))
 
 
 def _setattr_method_from_file(cls):
     if hasattr(cls, _FROM_FILE_METHOD):
         return
 
-    def from_file(cls, file):
+    def from_file_impl(cls, file):
         with open(file, "rt", encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         return cls.from_dict(data)
 
-    from_file.__qualname__ = f"{cls.__qualname__}.from_file"
+    from_file_impl.__qualname__ = f"{cls.__qualname__}.from_file"
 
-    setattr(cls, _FROM_FILE_METHOD, classmethod(from_file))
+    setattr(cls, _FROM_FILE_METHOD, classmethod(from_file_impl))
 
 
 def _setattr_method_as_dict(cls):
     if hasattr(cls, _AS_DICT_METHOD):
         return
 
-    def as_dict(self):
+    def as_dict_impl(self):
         return dataclasses.asdict(self)
 
-    as_dict.__qualname__ = f"{cls.__qualname__}.as_dict"
+    as_dict_impl.__qualname__ = f"{cls.__qualname__}.as_dict"
 
-    setattr(cls, _AS_DICT_METHOD, as_dict)
+    setattr(cls, _AS_DICT_METHOD, as_dict_impl)
+
+
+def from_dict(cls, data):
+    return cls.from_dict(data)
+
+
+def from_file(cls, file):
+    return cls.from_file(file)
+
+
+def as_dict(value):
+    return value.as_dict()
+
+
+def get_fields(class_or_instance):
+    data = getattr(class_or_instance, _CLASS_DATA, None)
+    if data is None:
+        raise TypeError("Value needs to be a class created by dictparser or be an instance of such a class")
+
+    return tuple(data.fields.values())

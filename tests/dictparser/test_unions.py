@@ -1,5 +1,5 @@
 from typing import Union, Optional, List, Dict
-from dictparser import dictparser
+from dictparser import dictparser, from_dict
 
 
 @dictparser(kw_only=True)
@@ -70,5 +70,5 @@ class TopLevel:
 
 def test_unions():
     """Tests @dictparser class construction from empty dict"""
-    v = TopLevel.from_dict(TopLevel.get_construct_data())
+    v = from_dict(TopLevel, TopLevel.get_construct_data())
     v.assert_defaults()

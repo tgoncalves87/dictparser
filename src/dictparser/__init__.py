@@ -1,24 +1,16 @@
 import sys
-import typing
 
-from .engine import process_class as _process_class
+__all__ = ['dictparser', 'from_dict', 'from_file', 'as_dict', 'fields']
 
 if sys.version_info >= (3, 11):
-    @typing.dataclass_transform()
-    def dictparser(cls=None, *, kw_only=False):
-        def wrap(cls):
-            return _process_class(cls, kw_only)
-
-        if cls is None:
-            return wrap
-
-        return wrap(cls)
+    from ._init_p311 import dictparser
+    from ._init_p311 import from_dict
+    from ._init_p311 import from_file
+    from ._init_p311 import as_dict
+    from ._init_p311 import fields
 else:
-    def dictparser(cls=None, *, kw_only=False):
-        def wrap(cls):
-            return _process_class(cls, kw_only)
-
-        if cls is None:
-            return wrap
-
-        return wrap(cls)
+    from ._init_p36 import dictparser
+    from ._init_p36 import from_dict
+    from ._init_p36 import from_file
+    from ._init_p36 import as_dict
+    from ._init_p36 import fields

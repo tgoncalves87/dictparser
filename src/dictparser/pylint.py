@@ -32,7 +32,7 @@ def transform(cls):
 
         if (isinstance(inferred, astroid.FunctionDef)
             and inferred.name == "dictparser"
-            and inferred.root().name == "dictparser"):
+            and inferred.root().name.startswith("dictparser.")):
 
             cls.is_dataclass = True
 
