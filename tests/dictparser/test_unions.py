@@ -2,7 +2,7 @@ from typing import Union, Optional, List, Dict
 from dictparser import dictparser
 
 
-@dictparser
+@dictparser(kw_only=True)
 class TopLevel:
     a1: Optional[bool]
     a2: Optional[bool]

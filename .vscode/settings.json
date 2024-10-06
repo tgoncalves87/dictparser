@@ -6,5 +6,6 @@
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
     "pythonTestExplorer.testFramework": "pytest",
-    "pylint.importStrategy": "fromEnvironment"
+    "pylint.importStrategy": "fromEnvironment",
+    "python.analysis.diagnosticMode":"workspace"
 }

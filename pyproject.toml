@@ -45,3 +45,6 @@ disable = [
     "missing-module-docstring",
     "missing-function-docstring"
 ]
+
+[tool.pyright]
+useLibraryCodeForTypes=true
