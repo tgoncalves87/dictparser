@@ -1,9 +1,9 @@
 # pylint: disable=R0801
-from .engine import process_class as _process_class
-from .engine import from_dict as _from_dict
-from .engine import from_file as _from_file
-from .engine import as_dict as _as_dict
-from .engine import get_fields as _get_fields
+from ._engine import process_class as _process_class
+from ._engine import from_dict as _from_dict
+from ._engine import from_file as _from_file
+from ._engine import as_dict as _as_dict
+from ._engine import get_fields as _get_fields
 
 
 def dictparser(cls=None, *, kw_only=False):
