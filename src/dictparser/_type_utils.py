@@ -1,12 +1,11 @@
+__all__ = ['type_get_origin', 'type_get_args', 'is_union_type', 'setattr_method', 'setattr_classmethod', 'strip_generic_from_type']
+
 import sys
 
 if sys.version_info >= (3, 10):
     from ._type_utils_p310 import type_get_origin, type_get_args, is_union_type
 else:
     from ._type_utils_p36 import type_get_origin, type_get_args, is_union_type
-
-
-__all__ = ['type_get_origin', 'type_get_args', 'is_union_type', 'setattr_method', 'setattr_classmethod']
 
 
 def setattr_method(cls, method_name, func):

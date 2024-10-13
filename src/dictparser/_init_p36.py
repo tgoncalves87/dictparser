@@ -1,4 +1,8 @@
 # pylint: disable=R0801
+
+__all__ = ['dictparser', 'from_dict', 'from_file', 'as_dict', 'fields', 'Field']
+
+from ._dictparser_data import Field
 from ._engine import process_class as _process_class
 from ._engine import from_dict as _from_dict
 from ._engine import from_file as _from_file
