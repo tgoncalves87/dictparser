@@ -1,6 +1,7 @@
 # pylint: disable=R0801
 from typing import Type, TypeVar, dataclass_transform
 
+from ._dictparser_data import Field
 from ._engine import process_class as _process_class
 from ._engine import from_dict as _from_dict
 from ._engine import from_file as _from_file
@@ -26,7 +27,7 @@ def from_dict(cls: Type[T], data) -> T:
     return _from_dict(cls, data)
 
 
-def from_file(cls, file):
+def from_file(cls: Type[T], file) -> T:
     return _from_file(cls, file)
 
 
@@ -34,5 +35,5 @@ def as_dict(value):
     return _as_dict(value)
 
 
-def fields(class_or_instance):
+def fields(class_or_instance) -> tuple[Field]:
     return _get_fields(class_or_instance)

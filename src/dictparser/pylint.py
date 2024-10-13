@@ -12,7 +12,7 @@ def register(_: "PyLinter") -> None:
 
     :param linter: The linter to register the checker to.
     """
-    astroid.MANAGER.register_transform(astroid.ClassDef, transform)
+    astroid.MANAGER.register_transform(astroid.ClassDef, transform)  # type: ignore
 
 
 def transform(cls):

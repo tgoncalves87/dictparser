@@ -41,6 +41,7 @@ max-line-length = 120
 [tool.pylint."messages control"]
 disable = [
     "no-else-return",
+    "no-else-raise",
     "missing-class-docstring",
     "missing-module-docstring",
     "missing-function-docstring"
