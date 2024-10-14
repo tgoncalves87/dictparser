@@ -1,12 +1,12 @@
 import abc
 import collections.abc
 import pathlib
-import dataclasses
 import typing
 import os
 import yaml
 
 from ._dictparser_data import CLASS_DATA_FIELD_NAME
+from ._dictparser_data import TYPE_INFO_FIELD_NAME
 from ._type_utils import type_get_origin, type_get_args, is_union_type, strip_generic_from_type
 
 
@@ -27,7 +27,11 @@ class Converter(abc.ABC):
             return self.convert_value(data)
 
     @abc.abstractmethod
-    def convert_value(self, data):
+    def convert_value(self, data) -> typing.Any:
+        pass
+
+    @abc.abstractmethod
+    def serialize_value(self, value) -> typing.Any:
         pass
 
     def _validate_res_type(self, res):
@@ -54,7 +58,8 @@ class Mapper:
         return cls.from_dict(data)
 
     def as_dict(self, value):
-        return dataclasses.asdict(value)
+        converter = self.get_converter_for_type(type(value))
+        return converter.serialize_value(value)
 
     def get_converter_for_type(self, vtype):
         converter = self._converters.get(vtype, None)
@@ -68,14 +73,17 @@ class Mapper:
         if vtype is type(None) or vtype is None:
             return NullConverter(self)
 
-        if vtype in (bool, int, float, complex, str, bytes, bytearray, pathlib.Path):
+        if vtype in (bool, int, float, complex, str, bytes, bytearray):
             return ConstructorConverter(self, vtype)
+
+        if vtype in (pathlib.Path,) or (isinstance(vtype, type) and issubclass(vtype, pathlib.Path)):
+            return PathlibPathConverter(self, vtype)
 
         if hasattr(vtype, CLASS_DATA_FIELD_NAME):
             return DictparserConverter(self, vtype)
 
-        if hasattr(vtype, "from_dict"):
-            return FromDictConverter(self, vtype)
+        #if hasattr(vtype, "from_dict"):
+        #    return FromDictConverter(self, vtype)
 
         vtype_origin = type_get_origin(vtype)
         if vtype_origin is not None:
@@ -121,6 +129,12 @@ class Mapper:
             else:
                 raise NotImplementedError(f"'origin {vtype_origin}' not implemented")
 
+        if vtype is list:
+            return ListAnyConverter(self, [list])
+
+        if vtype is dict:
+            return DictAnyAnyConverter(self, [dict])
+
         raise NotImplementedError(f"{vtype}")
 
 
@@ -134,6 +148,9 @@ class NullConverter(Converter):
 
         raise RuntimeError(f"Invalid data type '{type(data)}' for field type of None")
 
+    def serialize_value(self, value):
+        return value
+
 
 class ConstructorConverter(Converter):
     def __init__(self, mapper, vtype):
@@ -146,6 +163,24 @@ class ConstructorConverter(Converter):
 
         return self.vtype(data)
 
+    def serialize_value(self, value):
+        return value
+
+
+class PathlibPathConverter(Converter):
+    def __init__(self, mapper, vtype):
+        super().__init__(mapper, [vtype])
+        self.vtype = vtype
+
+    def convert_value(self, data):
+        if isinstance(data, self.vtype):
+            return data
+
+        return self.vtype(data)
+
+    def serialize_value(self, value):
+        return str(value)
+
 
 class DictparserConverter(Converter):
     def __init__(self, mapper, cls_type):
@@ -156,10 +191,24 @@ class DictparserConverter(Converter):
         if isinstance(data, self.cls_type):
             return data
 
-        class_data = getattr(self.cls_type, CLASS_DATA_FIELD_NAME)
-
         if not isinstance(data, collections.abc.Mapping):
             raise RuntimeError("data is not a dict like value")
+
+        data = dict(data.items())
+
+        class_data = getattr(self.cls_type, CLASS_DATA_FIELD_NAME)
+
+        type_info = getattr(self.cls_type, TYPE_INFO_FIELD_NAME, None)
+        if type_info is not None and (type_info.type_name is not None or len(type_info.children) > 0):
+            type_name = data[type_info.data_key]
+            del data[type_info.data_key]
+
+            if type_name == type_info.type_name:
+                class_data = getattr(type_info.cls, CLASS_DATA_FIELD_NAME)
+            elif type_name in type_info.children:
+                class_data = getattr(type_info.children[type_name].cls, CLASS_DATA_FIELD_NAME)
+            else:
+                raise RuntimeError(f"Unknown type_name of '{type_name}'")
 
         args = {}
         keys = set(data.keys())
@@ -181,6 +230,19 @@ class DictparserConverter(Converter):
 
         return class_data.result_cls(**args)
 
+    def serialize_value(self, value):
+        res = {}
+
+        type_info = getattr(value, TYPE_INFO_FIELD_NAME, None)
+        if type_info is not None and type_info.type_name is not None:
+            res[type_info.data_key] = type_info.type_name
+
+        class_data = getattr(value, CLASS_DATA_FIELD_NAME)
+        for field in class_data.fields.values():
+            res[field.data_key] = self.mapper.as_dict(getattr(value, field.field_name))
+
+        return res
+
 
 class FromDictConverter(Converter):
     def __init__(self, mapper, cls_type):
@@ -193,6 +255,9 @@ class FromDictConverter(Converter):
 
         return getattr(self.cls_type, "from_dict")(data)
 
+    def serialize_value(self, value):
+        return value
+
 
 class ListConverter(Converter):
     def __init__(self, mapper, res_types, item_type):
@@ -204,6 +269,23 @@ class ListConverter(Converter):
         return self.res_types[0](
             [converter.convert_value(v) for v in data]
         )
+
+    def serialize_value(self, value):
+        return [
+            self.mapper.as_dict(v)
+            for v in value
+        ]
+
+
+class ListAnyConverter(Converter):
+    def convert_value(self, data):
+        return self.res_types[0](data)
+
+    def serialize_value(self, value):
+        return [
+            self.mapper.as_dict(v)
+            for v in value
+        ]
 
 
 class DictConverter(Converter):
@@ -219,6 +301,23 @@ class DictConverter(Converter):
             [(key_converter.convert_value(k), value_converter.convert_value(v)) for k, v in data.items()]
         )
 
+    def serialize_value(self, value):
+        return {
+            k: self.mapper.as_dict(v)
+            for k,v in value.items()
+        }
+
+
+class DictAnyAnyConverter(Converter):
+    def convert_value(self, data):
+        return self.res_types[0](data)
+
+    def serialize_value(self, value):
+        return {
+            k: self.mapper.as_dict(v)
+            for k,v in value.items()
+        }
+
 
 class OptionalConverter(Converter):
     def __init__(self, field_type, res_types, item_type):
@@ -232,3 +331,6 @@ class OptionalConverter(Converter):
             converter = self.mapper.get_converter_for_type(self.item_type)
 
         return converter.convert_value(data)
+
+    def serialize_value(self, value):
+        return self.mapper.as_dict(value)

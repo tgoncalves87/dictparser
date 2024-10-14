@@ -2,7 +2,8 @@
 import sys
 
 from typing import Optional, List, Dict
-from dictparser import dictparser, from_dict, as_dict
+from pathlib import Path
+from dictparser import dictparser, from_dict, to_dict, as_dict
 
 
 if sys.version_info >= (3, 6):
@@ -68,6 +69,7 @@ if sys.version_info >= (3, 6):
         i4: Optional[Dict[str, ClassA]]
         i5: Optional[Dict[str, ClassA]] = {"b": ClassA(True, True)}
         i6: Optional[Dict[str, ClassA]] = None
+        j1: Path
 
         @classmethod
         def get_construct_data(cls):
@@ -97,6 +99,7 @@ if sys.version_info >= (3, 6):
                 "i1": {"c": {"enable": False, "extra": False}},
                 "i3": {"d": {"enable": False, "extra": False}},
                 "i4": None,
+                "j1": "abc"
             }
 
         def assert_defaults(self):  # pylint: disable=too-many-statements
@@ -150,6 +153,7 @@ if sys.version_info >= (3, 6):
             assert self.i4 is None
             assert self.i5 == {"b": ClassA(True, True)}
             assert self.i6 is None
+            assert self.j1 == Path("abc")
 
 
     @dictparser
@@ -288,3 +292,97 @@ if sys.version_info >= (3, 6):
 
         v2 = from_dict(TopLevel, TopLevel.get_construct_data())
         v2.assert_defaults()
+
+
+    def test_to_dict_default_from_method():
+        v = TopLevelDefauls.from_dict({}) # type: ignore
+
+        assert v.to_dict() == {
+            "a2": None,
+            "b2": True,
+            "b5": True,
+            "b6": None,
+            "c2": 1,
+            "c5": 2,
+            "c6": None,
+            "d2": "default",
+            "d5": "default",
+            "d6": None,
+        }
+
+
+    def test_to_dict_default_from_free_func():
+        v = from_dict(TopLevelDefauls, {})
+
+        assert to_dict(v) == {
+            "a2": None,
+            "b2": True,
+            "b5": True,
+            "b6": None,
+            "c2": 1,
+            "c5": 2,
+            "c6": None,
+            "d2": "default",
+            "d5": "default",
+            "d6": None,
+        }
+
+
+    def test_to_dict_with_default_from_method():
+        v = TopLevel.from_dict(TopLevel.get_construct_data()) # type: ignore
+
+        print(v.to_dict())
+
+        assert v.to_dict() == {
+            "a1": None,
+            "a2": None,
+            "b1": False,
+            "b2": True,
+            "b3": False,
+            "b4": None,
+            "b5": True,
+            "b6": None,
+            "c1": 3,
+            "c2": 1,
+            "c3": 4,
+            "c4": None,
+            "c5": 2,
+            "c6": None,
+            "d1": "a",
+            "d2": "default",
+            "d3": "b",
+            "d4": None,
+            "d5": "default",
+            "d6": None,
+            "e1": [4, 5, 6],
+            "e2": [1, 2, 3],
+            "e3": [4, 5, 6],
+            "e4": None,
+            "e5": [1, 2, 3],
+            "e6": None,
+            "f1": {"c": 3},
+            "f2": {"a": 1},
+            "f3": {"d": 4},
+            "f4": None,
+            "f5": {"b": 2},
+            "f6": None,
+            "g1": {"enable": False, "extra": False},
+            "g2": {"enable": True, "extra": True},
+            "g3": {"enable": False, "extra": False},
+            "g4": None,
+            "g5": {"enable": True, "extra": True},
+            "g6": None,
+            "h1": [{"enable": False, "extra": False}],
+            "h2": [{"enable": True, "extra": True}],
+            "h3": [{"enable": False, "extra": False}],
+            "h4": None,
+            "h5": [{"enable": True, "extra": True}],
+            "h6": None,
+            "i1": {"c": {"enable": False, "extra": False}},
+            "i2": {"a": {"enable": True, "extra": True}},
+            "i3": {"d": {"enable": False, "extra": False}},
+            "i4": None,
+            "i5": {"b": {"enable": True, "extra": True}},
+            "i6": None,
+            "j1": "abc",
+        }

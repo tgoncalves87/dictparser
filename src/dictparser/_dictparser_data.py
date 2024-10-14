@@ -1,6 +1,7 @@
 import typing
 
 CLASS_DATA_FIELD_NAME = "__dictparser_class_data__"
+TYPE_INFO_FIELD_NAME = "__dictparser_type_info__"
 
 
 class MISSING:  # pylint: disable=too-few-public-methods
@@ -13,6 +14,15 @@ class ClassData:  # pylint: disable=too-few-public-methods
         self.result_cls = MISSING
         self.has_required = False
         self.ignore_extra = False
+
+
+class TypeInfo:  # pylint: disable=too-few-public-methods
+    def __init__(self, parent, cls, data_key):
+        self.parent: TypeInfo | None = parent
+        self.cls = cls
+        self.data_key: str = data_key
+        self.type_name: str | None = None
+        self.children: dict[str, TypeInfo] = {}
 
 
 class Field:
