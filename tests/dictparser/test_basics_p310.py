@@ -1,6 +1,7 @@
+# pylint: disable=R0801
 import sys
 
-from dictparser import dictparser
+from dictparser import dictparser, from_dict, as_dict
 
 
 if sys.version_info >= (3, 10):
@@ -66,7 +67,6 @@ if sys.version_info >= (3, 10):
         i4: dict[str, ClassA] | None
         i5: dict[str, ClassA] | None = {"b": ClassA(True, True)}
         i6: dict[str, ClassA] | None = None
-
 
         @classmethod
         def get_construct_data(cls):
@@ -177,57 +177,113 @@ if sys.version_info >= (3, 10):
             assert self.d6 is None
 
 
-    def test_defaults_only_empty_dict():
+    def test_defaults_only_empty_dict_from_method():
         """Tests @dictparser class construction from empty dict"""
-        v = TopLevelDefauls.from_dict({})
+        v = TopLevelDefauls.from_dict({}) # type: ignore
         v.assert_defaults()
 
-        v2 = TopLevelDefauls.from_dict(v.as_dict())
+        v2 = TopLevelDefauls.from_dict(v.as_dict()) # type: ignore
         v2.assert_defaults()
 
         assert v2 == v
 
 
-    def test_with_defaults():
-        v = TopLevel.from_dict(TopLevel.get_construct_data())
+    def test_defaults_only_empty_dict_from_free_func():
+        """Tests @dictparser class construction from empty dict"""
+        v = from_dict(TopLevelDefauls, {})
         v.assert_defaults()
 
-        v2 = TopLevel.from_dict(v.as_dict())
+        v2 = from_dict(TopLevelDefauls, as_dict(v))
         v2.assert_defaults()
 
         assert v2 == v
 
 
-    def test_defaults_not_mutable():
-        v = TopLevel.from_dict(TopLevel.get_construct_data())
+    def test_with_defaults_from_method():
+        v = TopLevel.from_dict(TopLevel.get_construct_data()) # type: ignore
+        v.assert_defaults()
+
+        v2 = TopLevel.from_dict(v.as_dict()) # type: ignore
+        v2.assert_defaults()
+
+        assert v2 == v
+
+
+    def test_with_defaults_from_free_func():
+        v = from_dict(TopLevel, TopLevel.get_construct_data())
+        v.assert_defaults()
+
+        v2 = from_dict(TopLevel, as_dict(v))
+        v2.assert_defaults()
+
+        assert v2 == v
+
+
+    def test_defaults_not_mutable_from_method():
+        v = TopLevel.from_dict(TopLevel.get_construct_data()) # type: ignore
         v.e1.append(6)
         v.e2.append(6)
-        v.e3.append(6)
-        v.e5.append(6)
+        v.e3.append(6) # type: ignore
+        v.e5.append(6) # type: ignore
         v.f1["c"] = 7
         v.f2["c"] = 7
-        v.f3["c"] = 7
-        v.f5["c"] = 7
+        v.f3["c"] = 7 # type: ignore
+        v.f5["c"] = 7 # type: ignore
         v.g1.extra = True
         v.g2.extra = False
-        v.g3.extra = True
-        v.g5.extra = False
-        v.h1.append(True)
+        v.g3.extra = True # type: ignore
+        v.g5.extra = False # type: ignore
+        v.h1.append(ClassA(True, False))
         v.h1[0].extra = True
-        v.h2.append(True)
+        v.h2.append(ClassA(True, False))
         v.h2[0].extra = False
-        v.h3.append(True)
-        v.h3[0].extra = True
-        v.h5.append(True)
-        v.h5[0].extra = False
-        v.i1["x"] = True
+        v.h3.append(ClassA(True, False)) # type: ignore
+        v.h3[0].extra = True # type: ignore
+        v.h5.append(ClassA(True, False)) # type: ignore
+        v.h5[0].extra = False # type: ignore
+        v.i1["x"] = ClassA(True, False)
         v.i1["c"].extra = True
-        v.i2["x"] = True
+        v.i2["x"] = ClassA(True, False)
         v.i2["a"].extra = False
-        v.i3["x"] = True
-        v.i3["d"].extra = True
-        v.i5["x"] = True
-        v.i5["b"].extra = False
+        v.i3["x"] = ClassA(True, False) # type: ignore
+        v.i3["d"].extra = True # type: ignore
+        v.i5["x"] = ClassA(True, False) # type: ignore
+        v.i5["b"].extra = False # type: ignore
 
-        v2 = TopLevel.from_dict(TopLevel.get_construct_data())
+        v2 = TopLevel.from_dict(TopLevel.get_construct_data()) # type: ignore
+        v2.assert_defaults()
+
+
+    def test_defaults_not_mutable_from_free_func():
+        v = from_dict(TopLevel, TopLevel.get_construct_data())
+        v.e1.append(6)
+        v.e2.append(6)
+        v.e3.append(6) # type: ignore
+        v.e5.append(6) # type: ignore
+        v.f1["c"] = 7
+        v.f2["c"] = 7
+        v.f3["c"] = 7 # type: ignore
+        v.f5["c"] = 7 # type: ignore
+        v.g1.extra = True
+        v.g2.extra = False
+        v.g3.extra = True # type: ignore
+        v.g5.extra = False # type: ignore
+        v.h1.append(ClassA(True, False))
+        v.h1[0].extra = True
+        v.h2.append(ClassA(True, False))
+        v.h2[0].extra = False
+        v.h3.append(ClassA(True, False)) # type: ignore
+        v.h3[0].extra = True # type: ignore
+        v.h5.append(ClassA(True, False)) # type: ignore
+        v.h5[0].extra = False # type: ignore
+        v.i1["x"] = ClassA(True, False)
+        v.i1["c"].extra = True
+        v.i2["x"] = ClassA(True, False)
+        v.i2["a"].extra = False
+        v.i3["x"] = ClassA(True, False) # type: ignore
+        v.i3["d"].extra = True # type: ignore
+        v.i5["x"] = ClassA(True, False) # type: ignore
+        v.i5["b"].extra = False # type: ignore
+
+        v2 = from_dict(TopLevel, TopLevel.get_construct_data())
         v2.assert_defaults()

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dictparser"
-version = "0.1.5"
+version = "0.1.6"
 description = "A Class serialization/deserialization library"
 readme = "README.md"
 requires-python = ">=3.6"
@@ -41,7 +41,11 @@ max-line-length = 120
 [tool.pylint."messages control"]
 disable = [
     "no-else-return",
+    "no-else-raise",
     "missing-class-docstring",
     "missing-module-docstring",
     "missing-function-docstring"
 ]
+
+[tool.pyright]
+useLibraryCodeForTypes=true
