@@ -5,7 +5,7 @@ import typing
 import os
 import yaml
 
-from ._dictparser_data import CLASS_DATA_FIELD_NAME
+from ._dictparser_data import CLASS_DATA_FIELD_NAME, ClassData, TypeInfo
 from ._dictparser_data import TYPE_INFO_FIELD_NAME
 from ._type_utils import type_get_origin, type_get_args, is_union_type, strip_generic_from_type
 
@@ -196,9 +196,9 @@ class DictparserConverter(Converter):
 
         data = dict(data.items())
 
-        class_data = getattr(self.cls_type, CLASS_DATA_FIELD_NAME)
+        class_data: ClassData = getattr(self.cls_type, CLASS_DATA_FIELD_NAME)
 
-        type_info = getattr(self.cls_type, TYPE_INFO_FIELD_NAME, None)
+        type_info: typing.Optional[TypeInfo] = getattr(self.cls_type, TYPE_INFO_FIELD_NAME, None)
         if type_info is not None and (type_info.type_name is not None or len(type_info.children) > 0):
             type_name = data[type_info.data_key]
             del data[type_info.data_key]
@@ -233,11 +233,11 @@ class DictparserConverter(Converter):
     def serialize_value(self, value):
         res = {}
 
-        type_info = getattr(value, TYPE_INFO_FIELD_NAME, None)
+        type_info: typing.Optional[TypeInfo] = getattr(value, TYPE_INFO_FIELD_NAME, None)
         if type_info is not None and type_info.type_name is not None:
             res[type_info.data_key] = type_info.type_name
 
-        class_data = getattr(value, CLASS_DATA_FIELD_NAME)
+        class_data: ClassData = getattr(value, CLASS_DATA_FIELD_NAME)
         for field in class_data.fields.values():
             res[field.data_key] = self.mapper.as_dict(getattr(value, field.field_name))
 
