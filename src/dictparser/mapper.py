@@ -220,7 +220,7 @@ class DictparserConverter(Converter):
                 keys.remove(field.data_key)
             elif field.has_default:
                 args[field.field_name] = field.get_default_value()
-            elif field.required:
+            elif field.is_required:
                 raise RuntimeError(f"Required field '{field.field_name}' is missing")
             else:
                 raise RuntimeError("ups")
