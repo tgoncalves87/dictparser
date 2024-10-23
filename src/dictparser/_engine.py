@@ -90,17 +90,14 @@ def process_class(cls, **kargs):
     #
     #
     #
-    _class_data = ClassData()
-    setattr(cls, CLASS_DATA_FIELD_NAME, _class_data)
-
-    _class_data.fields = fields
+    _class_data = ClassData(fields, cls)
 
     for field in _class_data.fields.values():
         if not field.has_default:
             _class_data.has_required = True
             break
 
-    _class_data.result_cls = cls
+    setattr(cls, CLASS_DATA_FIELD_NAME, _class_data)
 
     #
     #
