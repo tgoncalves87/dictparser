@@ -8,23 +8,6 @@ class MISSING:  # pylint: disable=too-few-public-methods
     pass
 
 
-class ClassData:  # pylint: disable=too-few-public-methods
-    def __init__(self):
-        self.fields = {}
-        self.result_cls = MISSING
-        self.has_required = False
-        self.ignore_extra = False
-
-
-class TypeInfo:  # pylint: disable=too-few-public-methods
-    def __init__(self, parent, cls, data_key):
-        self.parent: TypeInfo | None = parent
-        self.cls = cls
-        self.data_key: str = data_key
-        self.type_name: str | None = None
-        self.children: dict[str, TypeInfo] = {}
-
-
 class Field:
     def __init__(
         self,
@@ -80,3 +63,20 @@ class Field:
     @property
     def is_required(self) -> bool:
         return self._required
+
+
+class ClassData:  # pylint: disable=too-few-public-methods
+    def __init__(self, fields: typing.Dict[str, Field], result_cls: typing.Type):
+        self.fields = fields
+        self.result_cls = result_cls
+        self.has_required: bool = False
+        self.ignore_extra: bool = False
+
+
+class TypeInfo:  # pylint: disable=too-few-public-methods
+    def __init__(self, parent, cls: typing.Type, data_key: str):
+        self.parent: TypeInfo | None = parent
+        self.cls = cls
+        self.data_key = data_key
+        self.type_name: typing.Optional[str] = None
+        self.children: typing.Dict[str, TypeInfo] = {}
