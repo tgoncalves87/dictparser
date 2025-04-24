@@ -3,6 +3,9 @@ import collections.abc
 import pathlib
 import typing
 import os
+import sys
+import datetime
+import copy
 import yaml
 
 from ._dictparser_data import CLASS_DATA_FIELD_NAME, ClassData, TypeInfo
@@ -13,8 +16,9 @@ from ._type_utils import type_get_origin, type_get_args, is_union_type, strip_ge
 _in_test = os.environ.get('PYTEST_VERSION') is not None
 
 
+
 class Converter(abc.ABC):
-    def __init__(self, mapper, res_types):
+    def __init__(self, mapper, res_types: list):
         self.mapper = mapper
         self.res_types = res_types
 
@@ -78,6 +82,9 @@ class Mapper:
 
         if vtype in (pathlib.Path,) or (isinstance(vtype, type) and issubclass(vtype, pathlib.Path)):
             return PathlibPathConverter(self, vtype)
+
+        if vtype in (datetime.datetime, ):
+            return DatetimeConverter(self)
 
         if hasattr(vtype, CLASS_DATA_FIELD_NAME):
             return DictparserConverter(self, vtype)
@@ -334,3 +341,31 @@ class OptionalConverter(Converter):
 
     def serialize_value(self, value):
         return self.mapper.as_dict(value)
+
+
+if sys.version_info >= (3, 7):
+    class DatetimeConverter(Converter):
+        def __init__(self, mapper):
+            super().__init__(mapper, [datetime.datetime])
+
+        def convert_value(self, data):
+            if isinstance(data, datetime.datetime):
+                return copy.copy(data)
+            else:
+                return datetime.datetime.fromisoformat(data)
+
+        def serialize_value(self, value):
+            return value.isoformat()
+else:
+    class DatetimeConverter(Converter):
+        def __init__(self, mapper):
+            super().__init__(mapper, [datetime.datetime])
+
+        def convert_value(self, data):
+            if isinstance(data, datetime.datetime):
+                return copy.copy(data)
+            else:
+                return datetime.datetime.strptime(data, '%Y-%m-%dT%H:%M:%S')
+
+        def serialize_value(self, value):
+            return value.isoformat()
