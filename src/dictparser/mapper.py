@@ -65,6 +65,10 @@ class Mapper:
         converter = self.get_converter_for_type(type(value))
         return converter.serialize_value(value)
 
+    def to_dict(self, value):
+        converter = self.get_converter_for_type(type(value))
+        return converter.serialize_value(value)
+
     def get_converter_for_type(self, vtype):
         converter = self._converters.get(vtype, None)
 
