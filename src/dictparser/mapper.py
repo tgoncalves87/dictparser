@@ -59,7 +59,7 @@ class Mapper:
         with open(file, "rt", encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
-        return cls.from_dict(data)
+        return self.from_dict(cls, data)
 
     def as_dict(self, value):
         converter = self.get_converter_for_type(type(value))
