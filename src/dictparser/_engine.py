@@ -27,7 +27,7 @@ def as_dict(value):
 
 
 def to_dict(value):
-    return _default_mapper.as_dict(value)
+    return _default_mapper.to_dict(value)
 
 
 def get_fields(class_or_instance):
