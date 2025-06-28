@@ -76,8 +76,8 @@ class TopLevel:
     @classmethod
     def expected_fields(cls):
         return {
-            "a1": {"field_type": None,                        "has_default": False},
-            "a2": {"field_type": None,                        "has_default": True, "default_value": None},
+            "a1": {"field_type": type(None),                  "has_default": False},
+            "a2": {"field_type": type(None),                  "has_default": True, "default_value": None},
             "b1": {"field_type": bool,                        "has_default": False},
             "b2": {"field_type": bool,                        "has_default": True, "default_value": True},
             "b3": {"field_type": Optional[bool],              "has_default": False},

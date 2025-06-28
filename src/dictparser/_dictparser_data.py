@@ -1,5 +1,6 @@
 import typing
 
+
 CLASS_DATA_FIELD_NAME = "__dictparser_class_data__"
 TYPE_INFO_FIELD_NAME = "__dictparser_type_info__"
 
@@ -66,9 +67,27 @@ class Field:
 
 
 class ClassData:  # pylint: disable=too-few-public-methods
-    def __init__(self, fields: typing.Dict[str, Field], result_cls: typing.Type):
-        self.fields = fields
+    def __init__(self):
+        self.result_cls: typing.Type = None  # type: ignore # This is to solve a chicken egg problem. It should always be non null for most of the code
+        self.field_defaults: dict[str, typing.Any] = {}
+        self.data_resolver: typing.Callable[['ClassData'],'ResolvedClassData'] | None = None
+        self._resolved_data: 'ResolvedClassData | None' = None
+
+    @property
+    def resolved_data(self) -> 'ResolvedClassData':
+        if self._resolved_data is None:
+            if self.data_resolver is not None:
+                self._resolved_data = self.data_resolver(self)
+            else:
+                raise RuntimeError("Internal Error. Missing ClassData resolver method")
+
+        return self._resolved_data
+
+
+class ResolvedClassData:  # pylint: disable=too-few-public-methods
+    def __init__(self, result_cls: typing.Type):
         self.result_cls = result_cls
+        self.fields: typing.Dict[str, Field] = {}
         self.has_required: bool = False
         self.ignore_extra: bool = False
 

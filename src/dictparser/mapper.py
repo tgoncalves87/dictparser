@@ -67,11 +67,11 @@ class Mapper:
 
     def get_converter_for_type(self, vtype):
         converter = self._converters.get(vtype, None)
-        if converter is not None:
-            return converter
 
-        self._converters[vtype] = self._init_converter_for_type(vtype)
-        return self._converters[vtype]
+        if converter is None:
+            converter = self._converters[vtype] = self._init_converter_for_type(vtype)
+
+        return converter
 
     def _init_converter_for_type(self, vtype) -> Converter:  # pylint: disable=too-many-return-statements,too-many-branches
         if vtype is type(None) or vtype is None:
@@ -220,7 +220,7 @@ class DictparserConverter(Converter):
         args = {}
         keys = set(data.keys())
 
-        for field in class_data.fields.values():
+        for field in class_data.resolved_data.fields.values():
             if field.data_key in data:
                 converter = self.mapper.get_converter_for_type(field.field_type)
                 args[field.field_name] = converter.from_dict(data[field.data_key])
@@ -232,7 +232,7 @@ class DictparserConverter(Converter):
             else:
                 raise RuntimeError("ups")
 
-        if len(keys) > 0 and not class_data.ignore_extra:
+        if len(keys) > 0 and not class_data.resolved_data.ignore_extra:
             raise RuntimeError(f"Extra data keys: {list(keys)}")
 
         return class_data.result_cls(**args)
@@ -245,7 +245,7 @@ class DictparserConverter(Converter):
             res[type_info.data_key] = type_info.type_name
 
         class_data: ClassData = getattr(value, CLASS_DATA_FIELD_NAME)
-        for field in class_data.fields.values():
+        for field in class_data.resolved_data.fields.values():
             res[field.data_key] = self.mapper.as_dict(getattr(value, field.field_name))
 
         return res
